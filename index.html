@@ -674,26 +674,25 @@
 
   function switchPlatform(platform) {
     currentPlatform = platform;
-    const tiktokBtn = document.getElementById('tiktokBtn');
+    const tiktokBtn   = document.getElementById('tiktokBtn');
     const facebookBtn = document.getElementById('facebookBtn');
-    const inputWrap = document.getElementById('inputWrap');
+    const inputWrap   = document.getElementById('inputWrap');
     const downloadBtn = document.getElementById('downloadBtn');
-    const urlInput = document.getElementById('videoUrl');
+    const urlInput    = document.getElementById('videoUrl');
 
     if (platform === 'tiktok') {
-      tiktokBtn.className = 'platform-btn active-tiktok';
+      tiktokBtn.className   = 'platform-btn active-tiktok';
       facebookBtn.className = 'platform-btn';
-      inputWrap.className = 'input-wrap';
+      inputWrap.className   = 'input-wrap';
       downloadBtn.className = 'download-btn tiktok-btn';
-      urlInput.placeholder = 'Paste TikTok video link here...';
+      urlInput.placeholder  = 'Paste TikTok video link here...';
     } else {
       facebookBtn.className = 'platform-btn active-facebook';
-      tiktokBtn.className = 'platform-btn';
-      inputWrap.className = 'input-wrap facebook';
+      tiktokBtn.className   = 'platform-btn';
+      inputWrap.className   = 'input-wrap facebook';
       downloadBtn.className = 'download-btn facebook-btn';
-      urlInput.placeholder = 'Paste Facebook video link here...';
+      urlInput.placeholder  = 'Paste Facebook video link here...';
     }
-
     hideResults();
   }
 
@@ -708,7 +707,7 @@
 
   function showError(msg) {
     const box = document.getElementById('errorBox');
-    box.textContent = msg;
+    box.innerHTML = msg;
     box.classList.add('show');
   }
 
@@ -719,18 +718,94 @@
   }
 
   function setLoading(loading) {
-    const btn = document.getElementById('downloadBtn');
+    const btn     = document.getElementById('downloadBtn');
     const spinner = document.getElementById('spinner');
     const btnText = document.getElementById('btnText');
-    btn.disabled = loading;
-    spinner.style.display = loading ? 'block' : 'none';
-    btnText.textContent = loading ? 'Fetching...' : 'Download Video';
+    btn.disabled             = loading;
+    spinner.style.display    = loading ? 'block' : 'none';
+    btnText.textContent      = loading ? 'Fetching...' : 'Download Video';
   }
 
-  const API_KEY = '40f13720a8msh8f470a855134c1dp125cafjsnfb8d2eaf6ef2';
+  // ── TikTok via tikwm.com (free, no API key, CORS-enabled) ──────────────────
+  async function fetchTikTok(url) {
+    const endpoint = 'https://www.tikwm.com/api/';
+    const body = new URLSearchParams({ url, hd: '1' });
 
-  // CORS proxy routes the request through a server so the browser doesn't block it
-  const CORS_PROXY = 'https://corsproxy.io/?url=';
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString()
+    });
+
+    if (!res.ok) throw new Error('tikwm API error: ' + res.status);
+    const json = await res.json();
+
+    // tikwm returns { code: 0, data: { play, hdplay, title, cover, ... } }
+    if (json.code !== 0 || !json.data) {
+      throw new Error(json.msg || 'Could not retrieve TikTok video');
+    }
+
+    const d = json.data;
+    // prefer HD watermark-free version, fall back to standard play URL
+    const videoUrl = d.hdplay || d.play || d.wmplay;
+    if (!videoUrl) throw new Error('No video URL returned from TikTok API');
+
+    return {
+      videoUrl,
+      title:   d.title   || 'TikTok Video',
+      quality: d.hdplay   ? 'HD · No Watermark' : 'SD · No Watermark',
+      thumb:   d.cover    || null
+    };
+  }
+
+  // ── Facebook via RapidAPI (fdownloader) through allorigins CORS proxy ──────
+  // allorigins forwards the full request body and returns JSON with .contents
+  async function fetchFacebook(url) {
+    // Using the free "facebook-video-downloader6" RapidAPI endpoint
+    // wrapped in allorigins so the browser can reach it cross-origin
+    const rapidUrl = 'https://facebook-video-downloader6.p.rapidapi.com/fbdown/get?url=' + encodeURIComponent(url);
+    const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(rapidUrl);
+
+    // Note: allorigins doesn't forward custom headers, so we use an endpoint
+    // that accepts the key as a query param, OR we fall back to a keyless proxy.
+    // Best keyless option: fdownloader via corsproxy.io (sends headers via
+    // the ?url= approach which corsproxy.io supports for GET only).
+    const CORS = 'https://corsproxy.io/?';
+    const fbApi = 'https://snap-save.app/api/ajaxSearch';
+
+    const formBody = new URLSearchParams({ q: url, t: 'media', lang: 'en' });
+    const res = await fetch(CORS + encodeURIComponent(fbApi), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formBody.toString()
+    });
+
+    if (!res.ok) throw new Error('Facebook API error: ' + res.status);
+    const json = await res.json();
+
+    // snap-save returns { status: 'ok', data: '<html with links>' }
+    if (json.status !== 'ok' || !json.data) {
+      throw new Error('Could not retrieve Facebook video info');
+    }
+
+    // Parse the HTML fragment snap-save returns to find download links
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(json.data, 'text/html');
+    const links = [...doc.querySelectorAll('a[href]')]
+      .map(a => ({ href: a.href || a.getAttribute('href'), text: a.textContent.trim() }))
+      .filter(l => l.href && (l.href.includes('.mp4') || l.href.includes('video') || l.href.includes('fbcdn')));
+
+    // Prefer HD link
+    const hdLink = links.find(l => /hd/i.test(l.text)) || links[0];
+    if (!hdLink) throw new Error('No downloadable Facebook video found. Make sure the video is public.');
+
+    return {
+      videoUrl: hdLink.href,
+      title:    'Facebook Video',
+      quality:  /hd/i.test(hdLink.text) ? 'HD Quality' : 'SD Quality',
+      thumb:    null
+    };
+  }
 
   async function fetchVideo() {
     const url = document.getElementById('videoUrl').value.trim();
@@ -741,107 +816,91 @@
       return;
     }
 
-    const isTikTok = url.includes('tiktok.com') || url.includes('vm.tiktok');
+    const isTikTok   = url.includes('tiktok.com') || url.includes('vm.tiktok') || url.includes('vt.tiktok');
     const isFacebook = url.includes('facebook.com') || url.includes('fb.watch') || url.includes('fb.com');
 
     if (currentPlatform === 'tiktok' && !isTikTok) {
-      showError("⚠️ That doesn't look like a TikTok link. Please switch to Facebook or paste a TikTok link.");
+      showError("⚠️ That doesn't look like a TikTok link. Switch to Facebook or paste a TikTok URL.");
       return;
     }
-
     if (currentPlatform === 'facebook' && !isFacebook) {
-      showError("⚠️ That doesn't look like a Facebook link. Please switch to TikTok or paste a Facebook link.");
+      showError("⚠️ That doesn't look like a Facebook link. Switch to TikTok or paste a Facebook URL.");
       return;
     }
 
     setLoading(true);
 
     try {
-      // Build the RapidAPI endpoint URL, then wrap it in the CORS proxy
-      const apiUrl = 'https://snap-video3.p.rapidapi.com/download?url=' + encodeURIComponent(url);
-
-      const response = await fetch(CORS_PROXY + encodeURIComponent(apiUrl), {
-        method: 'GET',
-        headers: {
-          'X-RapidAPI-Key': API_KEY,
-          'X-RapidAPI-Host': 'snap-video3.p.rapidapi.com'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('API returned status ' + response.status);
+      let result;
+      if (currentPlatform === 'tiktok') {
+        result = await fetchTikTok(url);
+      } else {
+        result = await fetchFacebook(url);
       }
 
-      const data = await response.json();
+      const { videoUrl, title, quality, thumb } = result;
 
-      // snap-video3 returns data.medias — each item has media_type: 'video' | 'audio'
-      const medias = data.medias || [];
-      const videos = medias.filter(m => m.media_type === 'video' || m.type === 'video' || (!m.media_type && !m.type));
-      const best = videos[0] || medias[0];
-
-      if (!best || !best.url) {
-        throw new Error('No downloadable video found in response');
-      }
-
-      const downloadUrl = best.url;
-      const title = data.title || data.text || (currentPlatform === 'tiktok' ? 'TikTok Video' : 'Facebook Video');
-      const quality = best.quality || best.extension || 'HD Quality';
-
-      document.getElementById('resultTitle').textContent = title.length > 40 ? title.substring(0, 40) + '...' : title;
-      document.getElementById('resultMeta').textContent = quality + ' · Ready to download';
+      document.getElementById('resultTitle').textContent = title.length > 45 ? title.substring(0, 45) + '…' : title;
+      document.getElementById('resultMeta').textContent  = quality + ' · Ready to download';
       document.getElementById('resultThumb').textContent = currentPlatform === 'tiktok' ? '🎵' : '📘';
 
-      // Store URL for the save button
-      document.getElementById('resultLink').dataset.videoUrl = downloadUrl;
-      document.getElementById('resultLink').dataset.videoTitle = title;
+      if (thumb) {
+        const img = document.createElement('img');
+        img.src       = thumb;
+        img.className = 'result-thumb';
+        img.onerror   = () => {};
+        const placeholder = document.getElementById('resultThumb');
+        placeholder.parentNode.replaceChild(img, placeholder);
+      }
+
+      const saveBtn = document.getElementById('resultLink');
+      saveBtn.dataset.videoUrl   = videoUrl;
+      saveBtn.dataset.videoTitle = title;
+      saveBtn.textContent        = '⬇ Save';
+      saveBtn.style.pointerEvents = 'auto';
+
       document.getElementById('resultArea').classList.add('show');
 
     } catch(err) {
       console.error('Download error:', err);
-      showError('❌ Could not download this video. Make sure the link is correct and the video is public.');
+      showError('❌ ' + (err.message || 'Could not fetch this video. Check the link and make sure the video is public.'));
     } finally {
       setLoading(false);
     }
   }
 
-  // Force-download the video as a blob so the browser saves it instead of opening it
+  // ── Save: try blob download, fall back to new-tab open ────────────────────
   async function saveVideo(btn) {
-    const videoUrl = btn.dataset.videoUrl;
+    const videoUrl   = btn.dataset.videoUrl;
     const videoTitle = btn.dataset.videoTitle || 'video';
     if (!videoUrl) return;
 
-    btn.textContent = '⏳ Saving...';
+    btn.textContent         = '⏳ Saving...';
     btn.style.pointerEvents = 'none';
 
     try {
-      const proxiedUrl = CORS_PROXY + encodeURIComponent(videoUrl);
-      const res = await fetch(proxiedUrl);
-      const blob = await res.blob();
-      const ext = blob.type.includes('mp4') || blob.type.includes('video') ? '.mp4' : '.mp4';
-      const blobUrl = URL.createObjectURL(blob);
-
+      // Attempt direct download first (works when server allows it)
       const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = videoTitle.replace(/[^a-z0-9]/gi, '_').substring(0, 50) + ext;
+      a.href     = videoUrl;
+      a.download = videoTitle.replace(/[^a-z0-9]/gi, '_').substring(0, 50) + '.mp4';
+      a.target   = '_blank';
+      a.rel      = 'noopener';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(blobUrl);
 
       btn.textContent = '✅ Saved!';
       setTimeout(() => {
-        btn.textContent = '⬇ Save';
+        btn.textContent         = '⬇ Save';
         btn.style.pointerEvents = 'auto';
       }, 3000);
     } catch(e) {
-      // Fallback: just open in new tab if blob download fails
       window.open(videoUrl, '_blank');
-      btn.textContent = '⬇ Save';
+      btn.textContent         = '⬇ Save';
       btn.style.pointerEvents = 'auto';
     }
   }
 
-  // Allow Enter key to trigger download
   document.getElementById('videoUrl').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') fetchVideo();
   });
