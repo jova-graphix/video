@@ -7,6 +7,7 @@
 <meta name="description" content="Download TikTok videos free without watermark. Fast, easy, no signup required.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://js.paystack.co/v1/inline.js"></script>
 <style>
   :root {
     --bg: #0A0A0F;
@@ -72,13 +73,29 @@
 
   .nav-logo {
     font-family: 'Outfit', sans-serif;
-    font-size: 18px;
+    font-size: 17px;
     font-weight: 800;
     color: var(--text);
-    letter-spacing: -0.5px;
+    letter-spacing: -0.4px;
+    line-height: 1.2;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
   }
 
-  .nav-logo span { color: var(--tiktok); }
+  .nav-logo-main { display: block; }
+  .nav-logo-main .word-tiktok { color: var(--text); }
+  .nav-logo-main .word-video  { color: var(--tiktok); }
+  .nav-logo-main .word-dl     { color: var(--tiktok); }
+
+  .nav-logo-by {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 9.5px;
+    font-weight: 400;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+    opacity: 0.7;
+  }
 
   .nav-badge {
     background: rgba(255,0,79,0.12);
@@ -243,13 +260,17 @@
     font-size: 15px;
     font-weight: 700;
     cursor: pointer;
-    transition: all 0.2s ease;
+    /* Only transition opacity — never position or transform */
+    transition: opacity 0.2s ease, box-shadow 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
     position: relative;
     overflow: hidden;
+    /* Prevent any layout shift */
+    transform: none !important;
+    left: 0 !important;
   }
 
   .download-btn.tiktok-btn {
@@ -258,27 +279,37 @@
     box-shadow: 0 8px 30px rgba(255,0,79,0.35);
   }
 
-  .download-btn.tiktok-btn {
+  /* Shimmer lives on ::before — the button itself never moves */
+  .download-btn.tiktok-btn::before {
     content: '';
     position: absolute;
     top: 0; left: -100%;
     width: 60%; height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent);
     transform: skewX(-20deg);
-    animation: shimmer 2.5s infinite;
+    animation: shimmer 2.8s ease-in-out infinite;
+    pointer-events: none;
   }
 
-  @keyframes shimmer { 0%{left:-100%;} 60%,100%{left:160%;} }
-  .download-btn:active { transform: scale(0.98); }
+  @keyframes shimmer { 0%{left:-100%;} 55%,100%{left:160%;} }
+  .download-btn:active { opacity: 0.85; }
   .download-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
   /* ── RESULT AREA ── */
   .result-area {
     margin-top: 20px;
-    display: none;
+    /* Reserve space even when hidden so nothing below jumps */
+    visibility: hidden;
+    height: 0;
+    overflow: hidden;
+    transition: none;
   }
 
-  .result-area.show { display: block; }
+  .result-area.show {
+    visibility: visible;
+    height: auto;
+    overflow: visible;
+  }
 
   .result-card {
     background: var(--surface);
@@ -288,22 +319,39 @@
     display: flex;
     align-items: center;
     gap: 14px;
+    /* Hard-lock the card height so it never changes */
+    min-height: 92px;
+    height: 92px;
+    box-sizing: border-box;
+  }
+
+  /* Thumb wrapper: always 56×56, never changes size regardless of content */
+  .result-thumb-wrap {
+    width: 56px;
+    height: 56px;
+    min-width: 56px;
+    min-height: 56px;
+    border-radius: 12px;
+    background: var(--surface2);
+    overflow: hidden;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
   }
 
   .result-thumb {
     width: 56px;
     height: 56px;
-    border-radius: 12px;
-    background: var(--surface2);
     object-fit: cover;
+    display: block;
     flex-shrink: 0;
   }
 
   .result-thumb-placeholder {
     width: 56px;
     height: 56px;
-    border-radius: 12px;
-    background: var(--surface2);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -311,7 +359,12 @@
     flex-shrink: 0;
   }
 
-  .result-info { flex: 1; min-width: 0; }
+  .result-info {
+    flex: 1;
+    min-width: 0;
+    /* Stop the info block from ever changing height */
+    overflow: hidden;
+  }
 
   .result-title {
     font-size: 13px;
@@ -321,16 +374,32 @@
     overflow: hidden;
     text-overflow: ellipsis;
     margin-bottom: 4px;
+    /* Lock to exactly one line */
+    line-height: 1.3;
+    max-height: 1.3em;
   }
 
-  .result-meta { font-size: 11.5px; color: var(--muted); }
+  .result-meta {
+    font-size: 11.5px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
   .result-download-btn {
     background: var(--success);
     color: #000;
     border: none;
     border-radius: 12px;
-    padding: 10px 16px;
+    /* Hard-locked size — never grows or shrinks */
+    width: 112px;
+    min-width: 112px;
+    max-width: 112px;
+    height: 40px;
+    min-height: 40px;
+    max-height: 40px;
+    padding: 0;
     font-family: 'Space Grotesk', sans-serif;
     font-size: 12px;
     font-weight: 700;
@@ -340,8 +409,10 @@
     text-decoration: none;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 5px;
     transition: opacity 0.15s;
+    overflow: hidden;
   }
 
   .result-download-btn:active { opacity: 0.85; }
@@ -380,59 +451,78 @@
   .how-section {
     position: relative;
     z-index: 1;
-    padding: 10px 24px 50px;
+    padding: 0 24px 28px;
     max-width: 580px;
     margin: 0 auto;
   }
 
   .section-title {
     font-family: 'Outfit', sans-serif;
-    font-size: 20px;
-    font-weight: 800;
-    color: var(--text);
-    margin-bottom: 20px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--muted);
+    margin-bottom: 12px;
     text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 1px;
   }
 
+  /* Inline horizontal steps */
   .steps-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
   }
 
   .step-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 18px 16px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 0 6px;
+    position: relative;
+  }
+
+  /* Connector line between steps */
+  .step-card:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 14px;
+    right: -6px;
+    width: 12px;
+    height: 1px;
+    background: var(--border);
   }
 
   .step-num {
-    width: 32px; height: 32px;
-    border-radius: 10px;
+    width: 28px; height: 28px;
+    border-radius: 50%;
     background: rgba(255,0,79,0.12);
     color: var(--tiktok);
     font-family: 'Outfit', sans-serif;
-    font-size: 15px;
+    font-size: 13px;
     font-weight: 800;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 10px;
+    margin-bottom: 7px;
+    flex-shrink: 0;
   }
 
   .step-card strong {
     display: block;
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 700;
     color: var(--text);
-    margin-bottom: 4px;
+    margin-bottom: 2px;
+    white-space: nowrap;
   }
 
   .step-card p {
-    font-size: 11.5px;
+    font-size: 10px;
     color: var(--muted);
-    line-height: 1.55;
+    line-height: 1.4;
   }
 
   /* ── SUPPORTED ── */
@@ -505,20 +595,531 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* ── AD SLOT ── */
-  .ad-slot {
-    background: var(--surface);
-    border: 1px dashed var(--border);
-    border-radius: 16px;
-    padding: 20px;
-    text-align: center;
-    color: var(--muted);
-    font-size: 12px;
-    margin: 0 24px 30px;
+  /* ── DONATION ── */
+  .donate-section {
+    position: relative;
+    z-index: 1;
     max-width: 580px;
+    margin: 0 auto 50px;
+    padding: 0 24px;
+  }
+
+  .donate-card {
+    background: linear-gradient(160deg, #1a1608 0%, var(--surface) 60%);
+    border: 1px solid rgba(255,184,0,0.3);
+    border-radius: 24px;
+    padding: 32px 24px 28px;
+    text-align: center;
+    box-shadow: 0 0 0 1px rgba(255,184,0,0.06),
+                0 20px 60px rgba(0,0,0,0.4),
+                0 0 40px rgba(255,184,0,0.07);
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Glow blob behind donate card */
+  .donate-card::before {
+    content: '';
+    position: absolute;
+    top: -60px; left: 50%;
+    transform: translateX(-50%);
+    width: 260px; height: 160px;
+    background: radial-gradient(ellipse, rgba(255,184,0,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .donate-icon {
+    font-size: 40px;
+    margin-bottom: 6px;
+    display: block;
+    line-height: 1;
+  }
+
+  .donate-eyebrow {
+    display: inline-block;
+    background: rgba(255,184,0,0.12);
+    border: 1px solid rgba(255,184,0,0.25);
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #FFB800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .donate-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--text);
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+    line-height: 1.15;
+  }
+
+  .donate-title span {
+    background: linear-gradient(90deg, #FFB800, #FF8C00);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .donate-sub {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+    margin-bottom: 20px;
+    max-width: 340px;
     margin-left: auto;
     margin-right: auto;
   }
+
+  /* Quick preset buttons on the page section */
+  .donate-presets {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+
+  .donate-preset-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 16px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .donate-preset-btn:hover,
+  .donate-preset-btn.selected {
+    background: rgba(255,184,0,0.12);
+    border-color: rgba(255,184,0,0.4);
+    color: #FFB800;
+  }
+
+  .donate-row {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .donate-input-wrap {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid rgba(255,184,0,0.2);
+    border-radius: 14px;
+    padding: 0 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: border-color 0.2s;
+  }
+
+  .donate-input-wrap:focus-within {
+    border-color: rgba(255, 184, 0, 0.6);
+    box-shadow: 0 0 0 4px rgba(255, 184, 0, 0.08);
+  }
+
+  .donate-currency {
+    font-size: 14px;
+    font-weight: 800;
+    color: #FFB800;
+    flex-shrink: 0;
+  }
+
+  .donate-input-wrap input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    padding: 14px 0;
+    width: 0;
+  }
+
+  .donate-input-wrap input::placeholder { color: var(--muted); }
+
+  .donate-btn {
+    background: linear-gradient(135deg, #FFB800, #FF8C00);
+    color: #000;
+    border: none;
+    border-radius: 14px;
+    padding: 14px 22px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: opacity 0.15s, transform 0.15s;
+    box-shadow: 0 6px 24px rgba(255,184,0,0.4);
+  }
+
+  .donate-btn:hover  { opacity: 0.9; }
+  .donate-btn:active { transform: scale(0.97); }
+  .donate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .donate-fee-note {
+    font-size: 11.5px;
+    color: var(--muted);
+    margin-top: 10px;
+    min-height: 18px;
+    transition: color 0.2s;
+  }
+
+  .donate-fee-note.has-value { color: #FFB800; }
+
+  .donate-success {
+    display: none;
+    margin-top: 14px;
+    background: rgba(0,229,160,0.08);
+    border: 1px solid rgba(0,229,160,0.2);
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--success);
+    text-align: center;
+  }
+
+  .donate-success.show { display: block; }
+  .donate-error {
+    display: none;
+    margin-top: 14px;
+    background: rgba(255,0,79,0.08);
+    border: 1px solid rgba(255,0,79,0.2);
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #FF6B8A;
+    text-align: center;
+  }
+  .donate-error.show { display: block; }
+
+  /* ── SUPPORT POPUP (post-download) ── */
+  .popup-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.35s ease;
+  }
+  .popup-overlay.show {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .popup-card {
+    background: var(--surface);
+    border: 1px solid rgba(255,184,0,0.25);
+    border-radius: 28px;
+    padding: 36px 28px 28px;
+    max-width: 420px;
+    width: 100%;
+    text-align: center;
+    position: relative;
+    box-shadow: 0 0 0 1px rgba(255,184,0,0.08), 0 30px 80px rgba(0,0,0,0.6), 0 0 60px rgba(255,184,0,0.08);
+    transform: translateY(20px) scale(0.97);
+    transition: transform 0.35s cubic-bezier(.22,.68,0,1.2);
+  }
+  .popup-overlay.show .popup-card {
+    transform: translateY(0) scale(1);
+  }
+
+  .popup-close {
+    position: absolute;
+    top: 14px; right: 16px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    width: 30px; height: 30px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+    line-height: 1;
+  }
+  .popup-close:hover { color: var(--text); background: rgba(255,255,255,0.08); }
+
+  .popup-pulse {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #FFB800, #FF8C00);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 32px;
+    margin: 0 auto 18px;
+    position: relative;
+  }
+  .popup-pulse::before, .popup-pulse::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: rgba(255,184,0,0.35);
+    animation: popPulse 2s ease-out infinite;
+  }
+  .popup-pulse::after { animation-delay: 0.7s; }
+  @keyframes popPulse {
+    0%   { transform: scale(1);   opacity: 0.8; }
+    100% { transform: scale(1.9); opacity: 0; }
+  }
+
+  .popup-tag {
+    display: inline-block;
+    background: rgba(255,184,0,0.12);
+    border: 1px solid rgba(255,184,0,0.25);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #FFB800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .popup-title {
+    font-family: 'Outfit', sans-serif;
+    font-size: 24px;
+    font-weight: 900;
+    color: var(--text);
+    letter-spacing: -0.6px;
+    line-height: 1.1;
+    margin-bottom: 10px;
+  }
+
+  .popup-title span {
+    background: linear-gradient(90deg, #FFB800, #FF8C00);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .popup-sub {
+    font-size: 13.5px;
+    color: var(--muted);
+    line-height: 1.65;
+    margin-bottom: 24px;
+    padding: 0 4px;
+  }
+
+  .popup-amounts {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+
+  .popup-preset {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 16px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .popup-preset:hover,
+  .popup-preset.selected {
+    background: rgba(255,184,0,0.12);
+    border-color: rgba(255,184,0,0.4);
+    color: #FFB800;
+  }
+
+  .popup-input-wrap {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    transition: border-color 0.2s;
+  }
+  .popup-input-wrap:focus-within {
+    border-color: rgba(255,184,0,0.5);
+    box-shadow: 0 0 0 4px rgba(255,184,0,0.06);
+  }
+  .popup-input-wrap span {
+    font-size: 13px; font-weight: 700; color: var(--muted); flex-shrink: 0;
+  }
+  .popup-input-wrap input {
+    flex: 1; background: transparent; border: none; outline: none;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 15px; font-weight: 600; color: var(--text);
+    padding: 14px 0;
+  }
+  .popup-input-wrap input::placeholder { color: var(--muted); }
+
+  .popup-fee {
+    font-size: 11.5px;
+    color: var(--muted);
+    margin-bottom: 18px;
+    min-height: 18px;
+    transition: color 0.2s;
+  }
+  .popup-fee.active { color: #FFB800; }
+
+  .popup-donate-btn {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, #FFB800, #FF8C00);
+    color: #000;
+    border: none;
+    border-radius: 16px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 8px 30px rgba(255,184,0,0.4);
+    transition: opacity 0.15s, transform 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .popup-donate-btn::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%; width: 60%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
+    transform: skewX(-20deg);
+    animation: shimmer 2.5s infinite;
+  }
+  .popup-donate-btn:hover   { opacity: 0.92; }
+  .popup-donate-btn:active  { transform: scale(0.98); }
+  .popup-donate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .popup-skip {
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: color 0.15s;
+    background: none;
+    border: none;
+    width: 100%;
+    padding: 4px;
+    font-family: 'Space Grotesk', sans-serif;
+  }
+  .popup-skip:hover { color: var(--text); }
+
+  .popup-success {
+    display: none;
+    margin-top: 14px;
+    background: rgba(0,229,160,0.08);
+    border: 1px solid rgba(0,229,160,0.2);
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--success);
+  }
+  .popup-success.show { display: block; }
+
+  /* ── EMAIL MODAL ── */
+  .email-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    z-index: 1100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+  }
+  .email-overlay.show { opacity: 1; pointer-events: all; }
+
+  .email-modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    padding: 28px 24px;
+    max-width: 360px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    transform: scale(0.95);
+    transition: transform 0.25s cubic-bezier(.22,.68,0,1.2);
+  }
+  .email-overlay.show .email-modal { transform: scale(1); }
+
+  .email-modal h3 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 17px; font-weight: 800;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .email-modal p {
+    font-size: 12.5px; color: var(--muted);
+    margin-bottom: 18px; line-height: 1.5;
+  }
+  .email-field {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 16px;
+    width: 100%;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px; color: var(--text);
+    outline: none;
+    margin-bottom: 12px;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+  }
+  .email-field:focus { border-color: rgba(255,184,0,0.5); }
+  .email-field::placeholder { color: var(--muted); }
+
+  .email-confirm-btn {
+    width: 100%;
+    padding: 13px;
+    background: linear-gradient(135deg, #FFB800, #FF8C00);
+    color: #000;
+    border: none; border-radius: 12px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px; font-weight: 800;
+    cursor: pointer;
+    margin-bottom: 8px;
+    transition: opacity 0.15s;
+  }
+  .email-confirm-btn:hover { opacity: 0.9; }
+  .email-cancel-btn {
+    background: none; border: none;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px; color: var(--muted);
+    cursor: pointer; width: 100%; padding: 4px;
+    transition: color 0.15s;
+  }
+  .email-cancel-btn:hover { color: var(--text); }
+  .email-error {
+    font-size: 12px; color: #FF6B8A;
+    margin-bottom: 10px; display: none;
+  }
+  .email-error.show { display: block; }
 </style>
 </head>
 <body>
@@ -528,7 +1129,12 @@
 
 <!-- NAV -->
 <nav>
-  <div class="nav-logo">TikTok<span>Downloader</span></div>
+  <div class="nav-logo">
+    <span class="nav-logo-main">
+      <span class="word-tiktok">TikTok </span><span class="word-video">Video </span><span class="word-dl">Downloader</span>
+    </span>
+    <span class="nav-logo-by">by Jova Graphix</span>
+  </div>
   <div class="nav-badge">FREE & NO WATERMARK</div>
 </nav>
 
@@ -571,7 +1177,9 @@
   <!-- Result -->
   <div class="result-area" id="resultArea">
     <div class="result-card">
-      <div class="result-thumb-placeholder" id="resultThumb">🎬</div>
+      <div class="result-thumb-wrap" id="resultThumbWrap">
+        <span id="resultThumb">🎬</span>
+      </div>
       <div class="result-info">
         <div class="result-title" id="resultTitle">Video Ready</div>
         <div class="result-meta" id="resultMeta">Tap to download</div>
@@ -583,59 +1191,79 @@
   </div>
 </div>
 
-<!-- AD SLOT -->
-<div class="ad-slot" id="adSlot">
-  <!-- Replace this with your Google AdSense or Monetag ad code -->
-  📢 Ad Space — Add your AdSense code here
-</div>
-
 <!-- HOW IT WORKS -->
 <div class="how-section">
   <div class="section-title">How It Works</div>
   <div class="steps-grid">
     <div class="step-card">
       <div class="step-num">1</div>
-      <strong>Copy the Link</strong>
-      <p>Open TikTok, tap Share → Copy Link on any video.</p>
+      <strong>Copy Link</strong>
+      <p>Tap Share → Copy Link on TikTok</p>
     </div>
     <div class="step-card">
       <div class="step-num">2</div>
-      <strong>Paste the URL</strong>
-      <p>Paste the copied link into the input box above.</p>
+      <strong>Paste URL</strong>
+      <p>Paste it in the box above</p>
     </div>
     <div class="step-card">
       <div class="step-num">3</div>
-      <strong>Click Download</strong>
-      <p>Hit the download button and wait a second.</p>
+      <strong>Download</strong>
+      <p>Hit the download button</p>
     </div>
     <div class="step-card">
       <div class="step-num">4</div>
-      <strong>Save to Device</strong>
-      <p>Tap "Save" to download the video to your phone or PC.</p>
+      <strong>Save</strong>
+      <p>Tap Save to your device</p>
     </div>
   </div>
 </div>
 
-<!-- SUPPORTED PLATFORMS -->
-<div class="supported-section">
-  <div class="section-title">Supported Platforms</div>
-  <div class="platform-cards">
-    <div class="platform-card tiktok-card">
-      <div class="p-icon">🎵</div>
-      <strong>TikTok</strong>
-      <p>Download any TikTok video without watermark in HD quality.</p>
+<!-- DONATE -->
+<div class="donate-section">
+  <div class="donate-card">
+    <span class="donate-icon">☕</span>
+    <div class="donate-eyebrow">💛 Support the Creator</div>
+    <div class="donate-title">This tool is free.<br><span>Keep it alive!</span></div>
+    <p class="donate-sub">Every download costs server time. If this saved you even 5 minutes, a small tip means everything — and takes just 30 seconds.</p>
+
+    <div class="donate-presets">
+      <button class="donate-preset-btn" onclick="selectDonatePreset(this, 10)">₵10</button>
+      <button class="donate-preset-btn" onclick="selectDonatePreset(this, 20)">₵20</button>
+      <button class="donate-preset-btn" onclick="selectDonatePreset(this, 50)">₵50</button>
+      <button class="donate-preset-btn" onclick="selectDonatePreset(this, 100)">₵100</button>
     </div>
+
+    <div class="donate-row">
+      <div class="donate-input-wrap">
+        <span class="donate-currency">₵</span>
+        <input type="number" id="donateAmount" placeholder="Or enter custom amount" min="100" step="50"
+               oninput="updateDonationFee()" />
+      </div>
+      <button class="donate-btn" id="donateBtn" onclick="startDonation()">
+        ☕ Donate
+      </button>
+    </div>
+
+    <div class="donate-fee-note" id="donateNote">
+      A 3% Paystack processing fee will be added to your amount.
+    </div>
+    <div class="donate-success" id="donateSuccess">🎉 Thank you so much! Your support means the world.</div>
+    <div class="donate-error" id="donateError"></div>
   </div>
 </div>
 
 <!-- FOOTER -->
 <footer>
-  <strong>TikTokDownloader</strong><br>
+  <strong>TikTok Video Downloader</strong> · <span style="font-size:10px;color:var(--muted)">by Jova Graphix</span><br>
   Fast, free video downloads. No signup required.<br>
   <span style="font-size:11px;">This tool is for personal use only. Respect copyright laws.</span>
 </footer>
 
 <script>
+  // ── PAYSTACK KEY ──────────────────────────────────────────
+  const PAYSTACK_PUBLIC_KEY = 'pk_live_a006adc2c2d0fd333f0a637d0505f94d378020b4';
+
+  // ── CORE UTILS ───────────────────────────────────────────
   async function pasteUrl() {
     try {
       const text = await navigator.clipboard.readText();
@@ -666,6 +1294,7 @@
     btnText.textContent   = loading ? 'Fetching...' : 'Download Video';
   }
 
+  // ── FETCH VIDEO ──────────────────────────────────────────
   async function fetchVideo() {
     const url = document.getElementById('videoUrl').value.trim();
     hideResults();
@@ -701,39 +1330,25 @@
       const videoUrl = d.hdplay || d.play || d.wmplay;
       if (!videoUrl) throw new Error('No video URL returned. Try again.');
 
-      const title   = d.title   || 'TikTok Video';
-      const quality = d.hdplay  ? 'HD · No Watermark' : 'SD · No Watermark';
-      const thumb   = d.cover   || null;
+      const title   = d.title || 'TikTok Video';
+      const quality = d.hdplay ? 'HD · No Watermark' : 'SD · No Watermark';
+      const thumb   = d.cover  || null;
 
       document.getElementById('resultTitle').textContent = title.length > 45 ? title.substring(0, 45) + '…' : title;
       document.getElementById('resultMeta').textContent  = quality + ' · Ready to download';
 
-      // Reset thumb element safely (may have been replaced by <img> on previous fetch)
-      const resultCard = document.querySelector('.result-card');
-      let thumbEl = document.getElementById('resultThumb');
-      if (!thumbEl || thumbEl.tagName === 'IMG') {
-        const newDiv = document.createElement('div');
-        newDiv.className = 'result-thumb-placeholder';
-        newDiv.id = 'resultThumb';
-        if (thumbEl) resultCard.replaceChild(newDiv, thumbEl);
-        else resultCard.insertBefore(newDiv, resultCard.firstChild);
-        thumbEl = newDiv;
-      }
-      thumbEl.textContent = '🎵';
-
+      // Update thumb inside the stable wrapper — never touch the wrapper itself
+      const wrap = document.getElementById('resultThumbWrap');
+      wrap.innerHTML = '';
       if (thumb) {
-        const img     = document.createElement('img');
+        const img = document.createElement('img');
         img.src       = thumb;
         img.className = 'result-thumb';
-        img.id        = 'resultThumb';
-        img.onerror   = () => {
-          const div = document.createElement('div');
-          div.className = 'result-thumb-placeholder';
-          div.id = 'resultThumb';
-          div.textContent = '🎵';
-          img.parentNode && img.parentNode.replaceChild(div, img);
-        };
-        thumbEl.parentNode.replaceChild(img, thumbEl);
+        img.alt       = '';
+        img.onerror   = () => { wrap.innerHTML = '<span>🎵</span>'; };
+        wrap.appendChild(img);
+      } else {
+        wrap.innerHTML = '<span>🎵</span>';
       }
 
       const saveBtn = document.getElementById('resultLink');
@@ -752,7 +1367,7 @@
     }
   }
 
-  // Fetch as blob via CORS proxy so browser saves instead of opening
+  // ── SAVE VIDEO + TRIGGER POPUP ───────────────────────────
   async function saveVideo(btn) {
     const videoUrl   = btn.dataset.videoUrl;
     const videoTitle = btn.dataset.videoTitle || 'tiktok_video';
@@ -787,19 +1402,281 @@
           btn.textContent         = '⬇ Save';
           btn.style.pointerEvents = 'auto';
         }, 3000);
+        // 🎯 Show support popup after successful download
+        setTimeout(() => openPopup(), 800);
         return;
       } catch(e) { /* try next */ }
     }
 
-    // Last resort: open in new tab
+    // Fallback: open in new tab
     window.open(videoUrl, '_blank');
     btn.textContent         = '⬇ Save';
     btn.style.pointerEvents = 'auto';
+    setTimeout(() => openPopup(), 800);
   }
 
   document.getElementById('videoUrl').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') fetchVideo();
   });
+
+  // ── SUPPORT POPUP ────────────────────────────────────────
+  function openPopup() {
+    document.getElementById('popupSuccess').classList.remove('show');
+    document.getElementById('popupAmount').value = '';
+    document.getElementById('popupFee').textContent = '3% Paystack fee will be added';
+    document.getElementById('popupFee').classList.remove('active');
+    document.getElementById('popupDonateBtn').disabled = false;
+    document.getElementById('popupDonateBtn').textContent = '💛 Support the Creator';
+    document.querySelectorAll('.popup-preset').forEach(b => b.classList.remove('selected'));
+    document.getElementById('supportPopup').classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closePopup() {
+    document.getElementById('supportPopup').classList.remove('show');
+    document.body.style.overflow = '';
+  }
+
+  // Close popup when clicking the dark overlay (not the card)
+  document.getElementById('supportPopup').addEventListener('click', function(e) {
+    if (e.target === this) closePopup();
+  });
+
+  function selectPreset(btn, amount) {
+    document.querySelectorAll('.popup-preset').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    document.getElementById('popupAmount').value = amount;
+    updatePopupFee();
+  }
+
+  function updatePopupFee() {
+    const raw  = parseFloat(document.getElementById('popupAmount').value);
+    const note = document.getElementById('popupFee');
+    // Deselect presets if user typed a custom value
+    const matchesPreset = [10,20,50,100].includes(raw);
+    if (!matchesPreset) {
+      document.querySelectorAll('.popup-preset').forEach(b => b.classList.remove('selected'));
+    }
+    if (!raw || raw <= 0) {
+      note.textContent = '3% Paystack fee will be added';
+      note.classList.remove('active');
+      return;
+    }
+    const fee   = parseFloat((raw * 0.03).toFixed(2));
+    const total = parseFloat((raw + fee).toFixed(2));
+    note.textContent = `₵${raw.toLocaleString()} donation + ₵${fee.toFixed(2)} Paystack fee = ₵${total.toFixed(2)} total`;
+    note.classList.add('active');
+  }
+
+  // Holds the pending donation amount while we wait for email
+  let _pendingAmountPesewas = 0;
+
+  function startPopupDonation() {
+    const raw = parseFloat(document.getElementById('popupAmount').value);
+    if (!raw || raw < 2) {
+      document.getElementById('popupAmount').focus();
+      document.getElementById('popupAmount').style.borderColor = 'rgba(255,0,79,0.5)';
+      setTimeout(() => document.getElementById('popupAmount').style.borderColor = '', 1500);
+      return;
+    }
+    const fee       = parseFloat((raw * 0.03).toFixed(2));
+    _pendingAmountPesewas = (raw + fee) * 100;
+    openEmailModal();
+  }
+
+  // ── EMAIL MODAL ──────────────────────────────────────────
+  function openEmailModal() {
+    document.getElementById('emailField').value = '';
+    document.getElementById('emailError').classList.remove('show');
+    document.getElementById('emailOverlay').classList.add('show');
+    setTimeout(() => document.getElementById('emailField').focus(), 200);
+  }
+
+  function closeEmailModal() {
+    document.getElementById('emailOverlay').classList.remove('show');
+  }
+
+  document.getElementById('emailOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeEmailModal();
+  });
+
+  document.getElementById('emailField').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') confirmEmail();
+  });
+
+  function confirmEmail() {
+    const email    = document.getElementById('emailField').value.trim();
+    const errorEl  = document.getElementById('emailError');
+    const emailReg = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailReg.test(email)) {
+      errorEl.classList.add('show');
+      document.getElementById('emailField').focus();
+      return;
+    }
+
+    errorEl.classList.remove('show');
+    closeEmailModal();
+    launchPaystack(email, _pendingAmountPesewas, 'popup');
+  }
+
+  // ── PAYSTACK LAUNCHER (shared by popup + page section) ──
+  function launchPaystack(email, amountPesewas, source) {
+    const isPopup   = source === 'popup';
+    const donateBtn = isPopup
+      ? document.getElementById('popupDonateBtn')
+      : document.getElementById('donateBtn');
+    const successEl = isPopup
+      ? document.getElementById('popupSuccess')
+      : document.getElementById('donateSuccess');
+
+    donateBtn.disabled    = true;
+    donateBtn.textContent = '⏳ Opening...';
+
+    const handler = PaystackPop.setup({
+      key:      PAYSTACK_PUBLIC_KEY,
+      email:    email,
+      amount:   amountPesewas,
+      currency: 'GHS',
+      ref:      'donation_' + Date.now(),
+      metadata: {
+        custom_fields: [
+          { display_name: 'Source', variable_name: 'source', value: 'TikTokDownloader' }
+        ]
+      },
+      onClose: function() {
+        donateBtn.disabled    = false;
+        donateBtn.textContent = isPopup ? '💛 Support the Creator' : '☕ Donate';
+      },
+      callback: function() {
+        donateBtn.disabled    = false;
+        donateBtn.textContent = isPopup ? '💛 Support the Creator' : '☕ Donate';
+        successEl.classList.add('show');
+        if (!isPopup) {
+          document.getElementById('donateAmount').value = '';
+          document.getElementById('donateNote').textContent = 'A 3% Paystack processing fee will be added to your amount.';
+          document.getElementById('donateNote').classList.remove('has-value');
+        }
+        if (isPopup) setTimeout(() => closePopup(), 3500);
+      }
+    });
+
+    handler.openIframe();
+  }
+
+  // ── PAGE DONATION SECTION ────────────────────────────────
+  function selectDonatePreset(btn, amount) {
+    document.querySelectorAll('.donate-preset-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    document.getElementById('donateAmount').value = amount;
+    updateDonationFee();
+  }
+
+  function updateDonationFee() {
+    const raw  = parseFloat(document.getElementById('donateAmount').value);
+    const note = document.getElementById('donateNote');
+    const matchesPreset = [10,20,50,100].includes(raw);
+    if (!matchesPreset) {
+      document.querySelectorAll('.donate-preset-btn').forEach(b => b.classList.remove('selected'));
+    }
+    if (!raw || raw <= 0) {
+      note.textContent = 'A 3% Paystack processing fee will be added to your amount.';
+      note.classList.remove('has-value');
+      return;
+    }
+    const fee   = parseFloat((raw * 0.03).toFixed(2));
+    const total = parseFloat((raw + fee).toFixed(2));
+    note.textContent = `₵${raw.toLocaleString()} donation + ₵${fee.toFixed(2)} Paystack fee = ₵${total.toFixed(2)} total`;
+    note.classList.add('has-value');
+  }
+
+  function startDonation() {
+    const raw     = parseFloat(document.getElementById('donateAmount').value);
+    const errorEl = document.getElementById('donateError');
+    document.getElementById('donateSuccess').classList.remove('show');
+    errorEl.classList.remove('show');
+
+    if (!raw || raw < 2) {
+      errorEl.textContent = '⚠️ Please enter an amount of at least ₵2.';
+      errorEl.classList.add('show');
+      return;
+    }
+
+    const fee          = parseFloat((raw * 0.03).toFixed(2));
+    _pendingAmountPesewas = (raw + fee) * 100;
+    // Re-use the email modal but route back to page section
+    document.getElementById('emailField').value = '';
+    document.getElementById('emailError').classList.remove('show');
+    document.getElementById('emailOverlay').classList.add('show');
+    setTimeout(() => document.getElementById('emailField').focus(), 200);
+
+    // Override confirmEmail for page section
+    window._donateSource = 'page';
+  }
+
+  // Patch confirmEmail to know which source to use
+  const _origConfirmEmail = confirmEmail;
+  function confirmEmail() {
+    const email    = document.getElementById('emailField').value.trim();
+    const errorEl  = document.getElementById('emailError');
+    const emailReg = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailReg.test(email)) {
+      errorEl.classList.add('show');
+      document.getElementById('emailField').focus();
+      return;
+    }
+
+    errorEl.classList.remove('show');
+    closeEmailModal();
+    const source = window._donateSource || 'popup';
+    window._donateSource = null;
+    launchPaystack(email, _pendingAmountPesewas, source);
+  }
 </script>
+<!-- SUPPORT CREATOR POPUP -->
+<div class="popup-overlay" id="supportPopup">
+  <div class="popup-card">
+    <button class="popup-close" onclick="closePopup()" aria-label="Close">✕</button>
+
+    <div class="popup-pulse">☕</div>
+    <div class="popup-tag">✨ You're awesome</div>
+    <div class="popup-title">Your video is<br><span>downloading!</span></div>
+    <p class="popup-sub">This tool is completely free and always will be.<br>If it helped you, a small tip keeps it alive and growing — even ₵10 makes a difference! 🙏</p>
+
+    <div class="popup-amounts">
+      <button class="popup-preset" onclick="selectPreset(this, 10)">₵10</button>
+      <button class="popup-preset" onclick="selectPreset(this, 20)">₵20</button>
+      <button class="popup-preset" onclick="selectPreset(this, 50)">₵50</button>
+      <button class="popup-preset" onclick="selectPreset(this, 100)">₵100</button>
+    </div>
+
+    <div class="popup-input-wrap">
+      <span>₵</span>
+      <input type="number" id="popupAmount" placeholder="Or type custom amount" min="100" step="50"
+             oninput="updatePopupFee()" />
+    </div>
+    <div class="popup-fee" id="popupFee">3% Paystack fee will be added</div>
+
+    <button class="popup-donate-btn" id="popupDonateBtn" onclick="startPopupDonation()">
+      💛 Support the Creator
+    </button>
+    <div class="popup-success" id="popupSuccess">🎉 Thank you so much! You just made my day!</div>
+    <button class="popup-skip" onclick="closePopup()">No thanks, maybe next time</button>
+  </div>
+</div>
+
+<!-- EMAIL MODAL -->
+<div class="email-overlay" id="emailOverlay">
+  <div class="email-modal">
+    <h3>One last step</h3>
+    <p>Paystack needs your email to process the payment. It won't be used for anything else.</p>
+    <div class="email-error" id="emailError">Please enter a valid email address.</div>
+    <input type="email" class="email-field" id="emailField" placeholder="your@email.com" />
+    <button class="email-confirm-btn" onclick="confirmEmail()">Continue to Payment →</button>
+    <button class="email-cancel-btn" onclick="closeEmailModal()">Cancel</button>
+  </div>
+</div>
+
 </body>
 </html>
