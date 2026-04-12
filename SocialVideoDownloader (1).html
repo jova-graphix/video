@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SocialVideoDownloader — Download TikTok & Facebook Videos Free</title>
+<meta name="description" content="Download TikTok and Facebook videos free without watermark. Fast, easy, no signup required.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0A0A0F;
+    --surface: #13131A;
+    --surface2: #1C1C26;
+    --border: rgba(255,255,255,0.07);
+    --tiktok: #FF004F;
+    --facebook: #1877F2;
+    --accent: #FF004F;
+    --accent2: #FF6B35;
+    --text: #F0F0F5;
+    --muted: #8888A0;
+    --success: #00E5A0;
+    --glow: rgba(255,0,79,0.15);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── BACKGROUND ── */
+  .bg-grid {
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,0,79,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,0,79,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .bg-glow {
+    position: fixed;
+    top: -200px; left: 50%;
+    transform: translateX(-50%);
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(255,0,79,0.12) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: relative;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(10,10,15,0.8);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    position: sticky;
+    top: 0;
+  }
+
+  .nav-logo {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: -0.5px;
+  }
+
+  .nav-logo span { color: var(--tiktok); }
+
+  .nav-badge {
+    background: rgba(255,0,79,0.12);
+    border: 1px solid rgba(255,0,79,0.25);
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--tiktok);
+    letter-spacing: 0.5px;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    padding: 60px 24px 40px;
+  }
+
+  .hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 24px;
+  }
+
+  .hero-eyebrow span { color: var(--success); }
+
+  .hero-title {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(32px, 8vw, 52px);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -1.5px;
+    margin-bottom: 16px;
+  }
+
+  .hero-title .line1 { color: var(--text); }
+  .hero-title .line2 {
+    background: linear-gradient(90deg, var(--tiktok), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero-sub {
+    font-size: 15px;
+    color: var(--muted);
+    line-height: 1.7;
+    max-width: 380px;
+    margin: 0 auto 40px;
+  }
+
+  /* ── PLATFORM TOGGLE ── */
+  .platform-toggle {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 4px;
+    width: fit-content;
+    margin: 0 auto 24px;
+    gap: 4px;
+  }
+
+  .platform-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 12px;
+    border: none;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--muted);
+    background: transparent;
+  }
+
+  .platform-btn.active-tiktok {
+    background: rgba(255,0,79,0.15);
+    color: var(--tiktok);
+    border: 1px solid rgba(255,0,79,0.25);
+  }
+
+  .platform-btn.active-facebook {
+    background: rgba(24,119,242,0.15);
+    color: var(--facebook);
+    border: 1px solid rgba(24,119,242,0.25);
+  }
+
+  .platform-btn svg { flex-shrink: 0; }
+
+  /* ── INPUT CARD ── */
+  .input-card {
+    position: relative;
+    z-index: 1;
+    max-width: 580px;
+    margin: 0 auto;
+    padding: 0 20px 50px;
+  }
+
+  .input-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 6px 6px 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: border-color 0.2s;
+  }
+
+  .input-wrap:focus-within {
+    border-color: rgba(255,0,79,0.4);
+    box-shadow: 0 0 0 4px rgba(255,0,79,0.06);
+  }
+
+  .input-wrap.facebook:focus-within {
+    border-color: rgba(24,119,242,0.4);
+    box-shadow: 0 0 0 4px rgba(24,119,242,0.06);
+  }
+
+  .input-wrap input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    color: var(--text);
+    padding: 10px 0;
+  }
+
+  .input-wrap input::placeholder { color: var(--muted); }
+
+  .paste-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .paste-btn:active { transform: scale(0.96); }
+
+  .download-btn {
+    width: 100%;
+    margin-top: 12px;
+    padding: 16px;
+    border: none;
+    border-radius: 16px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .download-btn.tiktok-btn {
+    background: linear-gradient(135deg, #FF004F, #FF6B35);
+    color: white;
+    box-shadow: 0 8px 30px rgba(255,0,79,0.35);
+  }
+
+  .download-btn.facebook-btn {
+    background: linear-gradient(135deg, #1877F2, #0A58CA);
+    color: white;
+    box-shadow: 0 8px 30px rgba(24,119,242,0.35);
+  }
+
+  .download-btn::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 60%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+    transform: skewX(-20deg);
+    animation: shimmer 2.5s infinite;
+  }
+
+  @keyframes shimmer { 0%{left:-100%;} 60%,100%{left:160%;} }
+  .download-btn:active { transform: scale(0.98); }
+  .download-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  /* ── RESULT AREA ── */
+  .result-area {
+    margin-top: 20px;
+    display: none;
+  }
+
+  .result-area.show { display: block; }
+
+  .result-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .result-thumb {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    background: var(--surface2);
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+
+  .result-thumb-placeholder {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    background: var(--surface2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+  }
+
+  .result-info { flex: 1; min-width: 0; }
+
+  .result-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 4px;
+  }
+
+  .result-meta { font-size: 11.5px; color: var(--muted); }
+
+  .result-download-btn {
+    background: var(--success);
+    color: #000;
+    border: none;
+    border-radius: 12px;
+    padding: 10px 16px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: opacity 0.15s;
+  }
+
+  .result-download-btn:active { opacity: 0.85; }
+
+  /* ── ERROR ── */
+  .error-box {
+    background: rgba(255,0,79,0.08);
+    border: 1px solid rgba(255,0,79,0.2);
+    border-radius: 14px;
+    padding: 14px 16px;
+    font-size: 13px;
+    color: #FF6B8A;
+    margin-top: 12px;
+    display: none;
+    text-align: center;
+  }
+
+  .error-box.show { display: block; }
+
+  /* ── API KEY NOTICE ── */
+  .api-notice {
+    background: rgba(255,184,0,0.08);
+    border: 1px solid rgba(255,184,0,0.2);
+    border-radius: 14px;
+    padding: 14px 16px;
+    font-size: 13px;
+    color: #FFB800;
+    margin-top: 12px;
+    text-align: center;
+    display: none;
+  }
+
+  .api-notice.show { display: block; }
+
+  /* ── HOW IT WORKS ── */
+  .how-section {
+    position: relative;
+    z-index: 1;
+    padding: 10px 24px 50px;
+    max-width: 580px;
+    margin: 0 auto;
+  }
+
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 20px;
+    text-align: center;
+  }
+
+  .steps-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .step-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px 16px;
+  }
+
+  .step-num {
+    width: 32px; height: 32px;
+    border-radius: 10px;
+    background: rgba(255,0,79,0.12);
+    color: var(--tiktok);
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 10px;
+  }
+
+  .step-card strong {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  .step-card p {
+    font-size: 11.5px;
+    color: var(--muted);
+    line-height: 1.55;
+  }
+
+  /* ── SUPPORTED ── */
+  .supported-section {
+    position: relative;
+    z-index: 1;
+    padding: 0 24px 50px;
+    max-width: 580px;
+    margin: 0 auto;
+  }
+
+  .platform-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .platform-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px 16px;
+    text-align: center;
+  }
+
+  .platform-card .p-icon {
+    width: 48px; height: 48px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 12px;
+    font-size: 22px;
+  }
+
+  .platform-card.tiktok-card .p-icon { background: rgba(255,0,79,0.12); }
+  .platform-card.facebook-card .p-icon { background: rgba(24,119,242,0.12); }
+
+  .platform-card strong {
+    display: block;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .platform-card p { font-size: 11.5px; color: var(--muted); line-height: 1.55; }
+
+  /* ── FOOTER ── */
+  footer {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    padding: 24px 20px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.8;
+  }
+
+  footer strong { color: var(--text); }
+
+  /* ── LOADING SPINNER ── */
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── AD SLOT ── */
+  .ad-slot {
+    background: var(--surface);
+    border: 1px dashed var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    margin: 0 24px 30px;
+    max-width: 580px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">Social<span>Video</span>Downloader</div>
+  <div class="nav-badge">FREE & FAST</div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-eyebrow">
+    <span>●</span> No Watermark &nbsp;·&nbsp; No Signup &nbsp;·&nbsp; 100% Free
+  </div>
+  <h1 class="hero-title">
+    <div class="line1">Download Videos</div>
+    <div class="line2">Instantly & Free</div>
+  </h1>
+  <p class="hero-sub">Download TikTok and Facebook videos without watermark. Paste the link and download in seconds.</p>
+
+  <!-- PLATFORM TOGGLE -->
+  <div class="platform-toggle">
+    <button class="platform-btn active-tiktok" id="tiktokBtn" onclick="switchPlatform('tiktok')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.33 6.33 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.22 8.22 0 0 0 4.81 1.55V6.79a4.85 4.85 0 0 1-1.04-.1z"/></svg>
+      TikTok
+    </button>
+    <button class="platform-btn" id="facebookBtn" onclick="switchPlatform('facebook')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+      Facebook
+    </button>
+  </div>
+</div>
+
+<!-- INPUT CARD -->
+<div class="input-card">
+  <div class="input-wrap" id="inputWrap">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8888A0" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    <input type="url" id="videoUrl" placeholder="Paste TikTok or Facebook video link here..." />
+    <button class="paste-btn" onclick="pasteUrl()">📋 Paste</button>
+  </div>
+
+  <button class="download-btn tiktok-btn" id="downloadBtn" onclick="fetchVideo()">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    <span id="btnText">Download Video</span>
+    <div class="spinner" id="spinner"></div>
+  </button>
+
+  <!-- API Notice -->
+  <div class="api-notice" id="apiNotice">
+    ⚙️ Something went wrong. Please try again.
+  </div>
+
+  <!-- Error -->
+  <div class="error-box" id="errorBox"></div>
+
+  <!-- Result -->
+  <div class="result-area" id="resultArea">
+    <div class="result-card">
+      <div class="result-thumb-placeholder" id="resultThumb">🎬</div>
+      <div class="result-info">
+        <div class="result-title" id="resultTitle">Video Ready</div>
+        <div class="result-meta" id="resultMeta">Tap to download</div>
+      </div>
+      <a class="result-download-btn" id="resultLink" href="#" download>
+        ⬇ Save
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- AD SLOT -->
+<div class="ad-slot" id="adSlot">
+  <!-- Replace this with your Google AdSense or Monetag ad code -->
+  📢 Ad Space — Add your AdSense code here
+</div>
+
+<!-- HOW IT WORKS -->
+<div class="how-section">
+  <div class="section-title">How It Works</div>
+  <div class="steps-grid">
+    <div class="step-card">
+      <div class="step-num">1</div>
+      <strong>Copy the Link</strong>
+      <p>Open TikTok or Facebook, tap Share → Copy Link on any video.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">2</div>
+      <strong>Paste the URL</strong>
+      <p>Paste the copied link into the input box above.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">3</div>
+      <strong>Click Download</strong>
+      <p>Hit the download button and wait a second.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">4</div>
+      <strong>Save to Device</strong>
+      <p>Tap "Save" to download the video to your phone or PC.</p>
+    </div>
+  </div>
+</div>
+
+<!-- SUPPORTED PLATFORMS -->
+<div class="supported-section">
+  <div class="section-title">Supported Platforms</div>
+  <div class="platform-cards">
+    <div class="platform-card tiktok-card">
+      <div class="p-icon">🎵</div>
+      <strong>TikTok</strong>
+      <p>Download any TikTok video without watermark in HD quality.</p>
+    </div>
+    <div class="platform-card facebook-card">
+      <div class="p-icon">📘</div>
+      <strong>Facebook</strong>
+      <p>Download public Facebook videos in HD or SD quality.</p>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <strong>SocialVideoDownloader</strong><br>
+  Fast, free video downloads. No signup required.<br>
+  <span style="font-size:11px;">This tool is for personal use only. Respect copyright laws.</span>
+</footer>
+
+<script>
+  let currentPlatform = 'tiktok';
+
+  function switchPlatform(platform) {
+    currentPlatform = platform;
+    const tiktokBtn = document.getElementById('tiktokBtn');
+    const facebookBtn = document.getElementById('facebookBtn');
+    const inputWrap = document.getElementById('inputWrap');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const urlInput = document.getElementById('videoUrl');
+
+    if (platform === 'tiktok') {
+      tiktokBtn.className = 'platform-btn active-tiktok';
+      facebookBtn.className = 'platform-btn';
+      inputWrap.className = 'input-wrap';
+      downloadBtn.className = 'download-btn tiktok-btn';
+      urlInput.placeholder = 'Paste TikTok video link here...';
+    } else {
+      facebookBtn.className = 'platform-btn active-facebook';
+      tiktokBtn.className = 'platform-btn';
+      inputWrap.className = 'input-wrap facebook';
+      downloadBtn.className = 'download-btn facebook-btn';
+      urlInput.placeholder = 'Paste Facebook video link here...';
+    }
+
+    hideResults();
+  }
+
+  async function pasteUrl() {
+    try {
+      const text = await navigator.clipboard.readText();
+      document.getElementById('videoUrl').value = text;
+    } catch(e) {
+      document.getElementById('videoUrl').focus();
+    }
+  }
+
+  function showError(msg) {
+    const box = document.getElementById('errorBox');
+    box.textContent = msg;
+    box.classList.add('show');
+  }
+
+  function hideResults() {
+    document.getElementById('errorBox').classList.remove('show');
+    document.getElementById('resultArea').classList.remove('show');
+    document.getElementById('apiNotice').classList.remove('show');
+  }
+
+  function setLoading(loading) {
+    const btn = document.getElementById('downloadBtn');
+    const spinner = document.getElementById('spinner');
+    const btnText = document.getElementById('btnText');
+    btn.disabled = loading;
+    spinner.style.display = loading ? 'block' : 'none';
+    btnText.textContent = loading ? 'Fetching...' : 'Download Video';
+  }
+
+  async function fetchVideo() {
+    const url = document.getElementById('videoUrl').value.trim();
+    hideResults();
+
+    if (!url) {
+      showError('⚠️ Please paste a video link first.');
+      return;
+    }
+
+    const isTikTok = url.includes('tiktok.com') || url.includes('vm.tiktok');
+    const isFacebook = url.includes('facebook.com') || url.includes('fb.watch') || url.includes('fb.com');
+
+    if (currentPlatform === 'tiktok' && !isTikTok) {
+      showError("⚠️ That doesn't look like a TikTok link. Please switch to Facebook or paste a TikTok link.");
+      return;
+    }
+
+    if (currentPlatform === 'facebook' && !isFacebook) {
+      showError("⚠️ That doesn't look like a Facebook link. Please switch to TikTok or paste a Facebook link.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Use cobalt.tools API — free, no key needed
+      const response = await fetch('https://api.cobalt.tools/', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          url: url,
+          videoQuality: '1080',
+          filenameStyle: 'pretty',
+          disableMetadata: false
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.status === 'stream' || data.status === 'redirect') {
+        const downloadUrl = data.url;
+        const title = data.filename || (currentPlatform === 'tiktok' ? 'TikTok Video' : 'Facebook Video');
+
+        document.getElementById('resultTitle').textContent = title.length > 40 ? title.substring(0,40) + '...' : title;
+        document.getElementById('resultMeta').textContent = 'HD Quality · Ready to download';
+        document.getElementById('resultThumb').textContent = currentPlatform === 'tiktok' ? '🎵' : '📘';
+        document.getElementById('resultLink').href = downloadUrl;
+        document.getElementById('resultArea').classList.add('show');
+
+      } else if (data.status === 'picker') {
+        // Multiple qualities available — use first one
+        const downloadUrl = data.picker[0].url;
+        document.getElementById('resultTitle').textContent = currentPlatform === 'tiktok' ? 'TikTok Video' : 'Facebook Video';
+        document.getElementById('resultMeta').textContent = 'HD Quality · Ready to download';
+        document.getElementById('resultThumb').textContent = currentPlatform === 'tiktok' ? '🎵' : '📘';
+        document.getElementById('resultLink').href = downloadUrl;
+        document.getElementById('resultArea').classList.add('show');
+
+      } else {
+        throw new Error('Could not extract video');
+      }
+
+    } catch(err) {
+      showError('❌ Could not download this video. Make sure the link is correct and the video is public.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Allow Enter key to trigger download
+  document.getElementById('videoUrl').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') fetchVideo();
+  });
+</script>
+</body>
+</html>
