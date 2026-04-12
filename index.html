@@ -758,74 +758,47 @@
     };
   }
 
-  // ── Facebook via snapsave.app — tries multiple CORS proxies ──────────────────
+  // ── Facebook via fdown.isuru.eu.org (FastAPI + yt-dlp, CORS-enabled) ─────────
   async function fetchFacebook(url) {
-    const fbApi    = 'https://snapsave.app/api/ajaxSearch';
-    const formBody = new URLSearchParams({ q: url, t: 'media', lang: 'en' }).toString();
+    // Primary: fdown.isuru.eu.org — open FastAPI/yt-dlp server, allows CORS
+    // POST /info  body: { "url": "..." }
+    // Returns: { formats: [{url, quality, ext, ...}], title, thumbnail, ... }
+    const primary = 'https://fdown.isuru.eu.org/info';
 
-    // Try corsproxy.io first (supports POST with body), then allorigins as fallback
-    const attempts = [
-      () => fetch('https://corsproxy.io/?' + encodeURIComponent(fbApi), {
+    let res, json;
+    try {
+      res = await fetch(primary, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formBody
-      }),
-      () => fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(fbApi), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: formBody
-      }),
-      () => fetch('https://cors-anywhere.herokuapp.com/' + fbApi, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'X-Requested-With': 'XMLHttpRequest'
-        },
-        body: formBody
-      })
-    ];
-
-    let json = null;
-    let lastErr = 'All proxies failed';
-    for (const attempt of attempts) {
-      try {
-        const res = await attempt();
-        if (!res.ok) { lastErr = 'HTTP ' + res.status; continue; }
-        const text = await res.text();
-        // allorigins /raw sometimes wraps in {"contents":...}
-        try { json = JSON.parse(text); }
-        catch { lastErr = 'Bad JSON'; continue; }
-        if (json && (json.status === 'ok' || json.data)) break;
-        // allorigins wrapper
-        if (json && json.contents) {
-          try { json = JSON.parse(json.contents); } catch {}
-          if (json && (json.status === 'ok' || json.data)) break;
-        }
-        json = null;
-        lastErr = 'No valid response';
-      } catch (e) { lastErr = e.message; }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      json = await res.json();
+    } catch (e) {
+      throw new Error('Facebook API unavailable (' + e.message + '). The video must be public.');
     }
 
-    if (!json || json.status !== 'ok' || !json.data) {
-      throw new Error('Could not fetch Facebook video. ' + lastErr + '. Make sure the video is public.');
+    // Response shape: { formats: [{url, quality, filesize, ext}], title, thumbnail }
+    const formats = json.formats || json.videos || [];
+    if (!formats.length && !json.url) {
+      throw new Error('No video found. Make sure the link is a public Facebook video.');
     }
 
-    // snapsave returns an HTML fragment — parse it for direct mp4/fbcdn links
-    const parser = new DOMParser();
-    const doc    = parser.parseFromString(json.data, 'text/html');
-    const links  = [...doc.querySelectorAll('a[href]')]
-      .map(a => ({ href: a.getAttribute('href'), text: a.textContent.trim() }))
-      .filter(l => l.href && l.href.startsWith('http') &&
-        (l.href.includes('fbcdn') || l.href.includes('.mp4') || l.href.includes('video')));
+    // Prefer HD/best quality — sort by quality label descending
+    const sorted = [...formats].sort((a, b) => {
+      const qa = parseInt(a.quality) || 0;
+      const qb = parseInt(b.quality) || 0;
+      return qb - qa;
+    });
 
-    const best = links.find(l => /hd/i.test(l.text)) || links[0];
-    if (!best) throw new Error('No download link found. The video may be private or region-restricted.');
+    const best = sorted[0] || { url: json.url };
+    if (!best.url) throw new Error('No downloadable URL in response.');
 
     return {
-      videoUrl: best.href,
-      title:    'Facebook Video',
-      quality:  /hd/i.test(best.text) ? 'HD Quality' : 'SD Quality',
-      thumb:    null
+      videoUrl: best.url,
+      title:    json.title || 'Facebook Video',
+      quality:  best.quality ? best.quality + 'p' : 'HD Quality',
+      thumb:    json.thumbnail || null
     };
   }
 
