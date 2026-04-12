@@ -758,47 +758,57 @@
     };
   }
 
-  // ── Facebook via fdown.isuru.eu.org (FastAPI + yt-dlp, CORS-enabled) ─────────
+  // ── Facebook via Claude API + web_search ────────────────────────────────────
+  // Claude uses its web_search tool to fetch the Facebook page and extract
+  // the direct fbcdn mp4 URL — no third-party scraper needed.
   async function fetchFacebook(url) {
-    // Primary: fdown.isuru.eu.org — open FastAPI/yt-dlp server, allows CORS
-    // POST /info  body: { "url": "..." }
-    // Returns: { formats: [{url, quality, ext, ...}], title, thumbnail, ... }
-    const primary = 'https://fdown.isuru.eu.org/info';
+    const prompt = `You are a video URL extractor. The user wants to download this Facebook video: ${url}
 
-    let res, json;
-    try {
-      res = await fetch(primary, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
-      });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      json = await res.json();
-    } catch (e) {
-      throw new Error('Facebook API unavailable (' + e.message + '). The video must be public.');
-    }
+Use your web_search tool to fetch the page and find the direct MP4 download URL (usually hosted on fbcdn.net or video-*.xx.fbcdn.net).
 
-    // Response shape: { formats: [{url, quality, filesize, ext}], title, thumbnail }
-    const formats = json.formats || json.videos || [];
-    if (!formats.length && !json.url) {
-      throw new Error('No video found. Make sure the link is a public Facebook video.');
-    }
+Respond ONLY with valid JSON in this exact format, no markdown, no explanation:
+{"videoUrl":"DIRECT_MP4_URL","title":"VIDEO_TITLE","quality":"HD"}
 
-    // Prefer HD/best quality — sort by quality label descending
-    const sorted = [...formats].sort((a, b) => {
-      const qa = parseInt(a.quality) || 0;
-      const qb = parseInt(b.quality) || 0;
-      return qb - qa;
+If you cannot find a direct MP4 URL, respond with:
+{"error":"reason why"}`;
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{ role: 'user', content: prompt }]
+      })
     });
 
-    const best = sorted[0] || { url: json.url };
-    if (!best.url) throw new Error('No downloadable URL in response.');
+    if (!res.ok) throw new Error('Claude API error: ' + res.status);
+    const data = await res.json();
+
+    // Extract the final text response from content blocks
+    const text = data.content
+      .filter(b => b.type === 'text')
+      .map(b => b.text)
+      .join('');
+
+    let parsed;
+    try {
+      // Strip any accidental markdown fences
+      const clean = text.replace(/```json|```/g, '').trim();
+      parsed = JSON.parse(clean);
+    } catch {
+      throw new Error('Could not parse video info. The video may be private or unavailable.');
+    }
+
+    if (parsed.error) throw new Error(parsed.error);
+    if (!parsed.videoUrl) throw new Error('No direct video URL found. Make sure the video is public.');
 
     return {
-      videoUrl: best.url,
-      title:    json.title || 'Facebook Video',
-      quality:  best.quality ? best.quality + 'p' : 'HD Quality',
-      thumb:    json.thumbnail || null
+      videoUrl: parsed.videoUrl,
+      title:    parsed.title || 'Facebook Video',
+      quality:  parsed.quality || 'HD Quality',
+      thumb:    null
     };
   }
 
