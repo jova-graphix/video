@@ -758,51 +758,73 @@
     };
   }
 
-  // ── Facebook via RapidAPI (fdownloader) through allorigins CORS proxy ──────
-  // allorigins forwards the full request body and returns JSON with .contents
+  // ── Facebook via snapsave.app — tries multiple CORS proxies ──────────────────
   async function fetchFacebook(url) {
-    // Using the free "facebook-video-downloader6" RapidAPI endpoint
-    // wrapped in allorigins so the browser can reach it cross-origin
-    const rapidUrl = 'https://facebook-video-downloader6.p.rapidapi.com/fbdown/get?url=' + encodeURIComponent(url);
-    const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(rapidUrl);
+    const fbApi    = 'https://snapsave.app/api/ajaxSearch';
+    const formBody = new URLSearchParams({ q: url, t: 'media', lang: 'en' }).toString();
 
-    // Note: allorigins doesn't forward custom headers, so we use an endpoint
-    // that accepts the key as a query param, OR we fall back to a keyless proxy.
-    // Best keyless option: fdownloader via corsproxy.io (sends headers via
-    // the ?url= approach which corsproxy.io supports for GET only).
-    const CORS = 'https://corsproxy.io/?';
-    const fbApi = 'https://snap-save.app/api/ajaxSearch';
+    // Try corsproxy.io first (supports POST with body), then allorigins as fallback
+    const attempts = [
+      () => fetch('https://corsproxy.io/?' + encodeURIComponent(fbApi), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formBody
+      }),
+      () => fetch('https://api.allorigins.win/raw?url=' + encodeURIComponent(fbApi), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: formBody
+      }),
+      () => fetch('https://cors-anywhere.herokuapp.com/' + fbApi, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: formBody
+      })
+    ];
 
-    const formBody = new URLSearchParams({ q: url, t: 'media', lang: 'en' });
-    const res = await fetch(CORS + encodeURIComponent(fbApi), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: formBody.toString()
-    });
-
-    if (!res.ok) throw new Error('Facebook API error: ' + res.status);
-    const json = await res.json();
-
-    // snap-save returns { status: 'ok', data: '<html with links>' }
-    if (json.status !== 'ok' || !json.data) {
-      throw new Error('Could not retrieve Facebook video info');
+    let json = null;
+    let lastErr = 'All proxies failed';
+    for (const attempt of attempts) {
+      try {
+        const res = await attempt();
+        if (!res.ok) { lastErr = 'HTTP ' + res.status; continue; }
+        const text = await res.text();
+        // allorigins /raw sometimes wraps in {"contents":...}
+        try { json = JSON.parse(text); }
+        catch { lastErr = 'Bad JSON'; continue; }
+        if (json && (json.status === 'ok' || json.data)) break;
+        // allorigins wrapper
+        if (json && json.contents) {
+          try { json = JSON.parse(json.contents); } catch {}
+          if (json && (json.status === 'ok' || json.data)) break;
+        }
+        json = null;
+        lastErr = 'No valid response';
+      } catch (e) { lastErr = e.message; }
     }
 
-    // Parse the HTML fragment snap-save returns to find download links
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(json.data, 'text/html');
-    const links = [...doc.querySelectorAll('a[href]')]
-      .map(a => ({ href: a.href || a.getAttribute('href'), text: a.textContent.trim() }))
-      .filter(l => l.href && (l.href.includes('.mp4') || l.href.includes('video') || l.href.includes('fbcdn')));
+    if (!json || json.status !== 'ok' || !json.data) {
+      throw new Error('Could not fetch Facebook video. ' + lastErr + '. Make sure the video is public.');
+    }
 
-    // Prefer HD link
-    const hdLink = links.find(l => /hd/i.test(l.text)) || links[0];
-    if (!hdLink) throw new Error('No downloadable Facebook video found. Make sure the video is public.');
+    // snapsave returns an HTML fragment — parse it for direct mp4/fbcdn links
+    const parser = new DOMParser();
+    const doc    = parser.parseFromString(json.data, 'text/html');
+    const links  = [...doc.querySelectorAll('a[href]')]
+      .map(a => ({ href: a.getAttribute('href'), text: a.textContent.trim() }))
+      .filter(l => l.href && l.href.startsWith('http') &&
+        (l.href.includes('fbcdn') || l.href.includes('.mp4') || l.href.includes('video')));
+
+    const best = links.find(l => /hd/i.test(l.text)) || links[0];
+    if (!best) throw new Error('No download link found. The video may be private or region-restricted.');
 
     return {
-      videoUrl: hdLink.href,
+      videoUrl: best.href,
       title:    'Facebook Video',
-      quality:  /hd/i.test(hdLink.text) ? 'HD Quality' : 'SD Quality',
+      quality:  /hd/i.test(best.text) ? 'HD Quality' : 'SD Quality',
       thumb:    null
     };
   }
@@ -887,36 +909,51 @@
     }
   }
 
-  // ── Save: try blob download, fall back to new-tab open ────────────────────
+  // ── Save: fetch as blob through CORS proxy → force browser download ──────────
   async function saveVideo(btn) {
     const videoUrl   = btn.dataset.videoUrl;
     const videoTitle = btn.dataset.videoTitle || 'video';
     if (!videoUrl) return;
 
-    btn.textContent         = '⏳ Saving...';
+    btn.textContent         = '⏳ Downloading...';
     btn.style.pointerEvents = 'none';
 
-    try {
-      // Attempt direct download first (works when server allows it)
-      const a = document.createElement('a');
-      a.href     = videoUrl;
-      a.download = videoTitle.replace(/[^a-z0-9]/gi, '_').substring(0, 50) + '.mp4';
-      a.target   = '_blank';
-      a.rel      = 'noopener';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+    const filename = videoTitle.replace(/[^a-z0-9]/gi, '_').substring(0, 50) + '.mp4';
 
-      btn.textContent = '✅ Saved!';
-      setTimeout(() => {
-        btn.textContent         = '⬇ Save';
-        btn.style.pointerEvents = 'auto';
-      }, 3000);
-    } catch(e) {
-      window.open(videoUrl, '_blank');
-      btn.textContent         = '⬇ Save';
-      btn.style.pointerEvents = 'auto';
+    // Try fetching as blob through corsproxy.io so the browser can save it
+    const proxies = [
+      'https://corsproxy.io/?' + encodeURIComponent(videoUrl),
+      'https://api.allorigins.win/raw?url=' + encodeURIComponent(videoUrl),
+      videoUrl  // direct as last resort (may just open in browser)
+    ];
+
+    for (const src of proxies) {
+      try {
+        const res  = await fetch(src);
+        if (!res.ok) continue;
+        const blob    = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a       = document.createElement('a');
+        a.href        = blobUrl;
+        a.download    = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+
+        btn.textContent = '✅ Done!';
+        setTimeout(() => {
+          btn.textContent         = '⬇ Save';
+          btn.style.pointerEvents = 'auto';
+        }, 3000);
+        return;
+      } catch (e) { /* try next proxy */ }
     }
+
+    // All blob attempts failed — open in new tab as final fallback
+    window.open(videoUrl, '_blank');
+    btn.textContent         = '⬇ Save';
+    btn.style.pointerEvents = 'auto';
   }
 
   document.getElementById('videoUrl').addEventListener('keydown', function(e) {
