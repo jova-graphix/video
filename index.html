@@ -1006,7 +1006,6 @@
     background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
     transform: skewX(-20deg);
     animation: shimmer 2.5s infinite;
-    pointer-events: none;
   }
   .popup-donate-btn:hover   { opacity: 0.92; }
   .popup-donate-btn:active  { transform: scale(0.98); }
@@ -1259,6 +1258,50 @@
   Fast, free video downloads. No signup required.<br>
   <span style="font-size:11px;">This tool is for personal use only. Respect copyright laws.</span>
 </footer>
+
+<!-- SUPPORT CREATOR POPUP -->
+<div class="popup-overlay" id="supportPopup">
+  <div class="popup-card">
+    <button class="popup-close" onclick="closePopup()" aria-label="Close">✕</button>
+
+    <div class="popup-pulse">☕</div>
+    <div class="popup-tag">✨ You're awesome</div>
+    <div class="popup-title">Your video is<br><span>downloading!</span></div>
+    <p class="popup-sub">This tool is completely free and always will be.<br>If it helped you, a small tip keeps it alive and growing — even ₵10 makes a difference! 🙏</p>
+
+    <div class="popup-amounts">
+      <button class="popup-preset" onclick="selectPreset(this, 10)">₵10</button>
+      <button class="popup-preset" onclick="selectPreset(this, 20)">₵20</button>
+      <button class="popup-preset" onclick="selectPreset(this, 50)">₵50</button>
+      <button class="popup-preset" onclick="selectPreset(this, 100)">₵100</button>
+    </div>
+
+    <div class="popup-input-wrap">
+      <span>₵</span>
+      <input type="number" id="popupAmount" placeholder="Or type custom amount" min="100" step="50"
+             oninput="updatePopupFee()" />
+    </div>
+    <div class="popup-fee" id="popupFee">3% Paystack fee will be added</div>
+
+    <button class="popup-donate-btn" id="popupDonateBtn" onclick="startPopupDonation()">
+      💛 Support the Creator
+    </button>
+    <div class="popup-success" id="popupSuccess">🎉 Thank you so much! You just made my day!</div>
+    <button class="popup-skip" onclick="closePopup()">No thanks, maybe next time</button>
+  </div>
+</div>
+
+<!-- EMAIL MODAL -->
+<div class="email-overlay" id="emailOverlay">
+  <div class="email-modal">
+    <h3>One last step</h3>
+    <p>Paystack needs your email to process the payment. It won't be used for anything else.</p>
+    <div class="email-error" id="emailError">Please enter a valid email address.</div>
+    <input type="email" class="email-field" id="emailField" placeholder="your@email.com" />
+    <button class="email-confirm-btn" onclick="confirmEmail()">Continue to Payment →</button>
+    <button class="email-cancel-btn" onclick="closeEmailModal()">Cancel</button>
+  </div>
+</div>
 
 <script>
   // ── PAYSTACK KEY ──────────────────────────────────────────
@@ -1531,11 +1574,6 @@
       ? document.getElementById('popupSuccess')
       : document.getElementById('donateSuccess');
 
-    if (typeof PaystackPop === 'undefined') {
-      alert('Payment could not load. Please disable any ad blocker and refresh the page, then try again.');
-      return;
-    }
-
     donateBtn.disabled    = true;
     donateBtn.textContent = '⏳ Opening...';
 
@@ -1640,49 +1678,6 @@
     launchPaystack(email, _pendingAmountPesewas, source);
   }
 </script>
-<!-- SUPPORT CREATOR POPUP -->
-<div class="popup-overlay" id="supportPopup">
-  <div class="popup-card">
-    <button class="popup-close" onclick="closePopup()" aria-label="Close">✕</button>
-
-    <div class="popup-pulse">☕</div>
-    <div class="popup-tag">✨ You're awesome</div>
-    <div class="popup-title">Your video is<br><span>downloading!</span></div>
-    <p class="popup-sub">This tool is completely free and always will be.<br>If it helped you, a small tip keeps it alive and growing — even ₵10 makes a difference! 🙏</p>
-
-    <div class="popup-amounts">
-      <button class="popup-preset" onclick="selectPreset(this, 10)">₵10</button>
-      <button class="popup-preset" onclick="selectPreset(this, 20)">₵20</button>
-      <button class="popup-preset" onclick="selectPreset(this, 50)">₵50</button>
-      <button class="popup-preset" onclick="selectPreset(this, 100)">₵100</button>
-    </div>
-
-    <div class="popup-input-wrap">
-      <span>₵</span>
-      <input type="number" id="popupAmount" placeholder="Or type custom amount" min="100" step="50"
-             oninput="updatePopupFee()" />
-    </div>
-    <div class="popup-fee" id="popupFee">3% Paystack fee will be added</div>
-
-    <button class="popup-donate-btn" id="popupDonateBtn" onclick="startPopupDonation()">
-      💛 Support the Creator
-    </button>
-    <div class="popup-success" id="popupSuccess">🎉 Thank you so much! You just made my day!</div>
-    <button class="popup-skip" onclick="closePopup()">No thanks, maybe next time</button>
-  </div>
-</div>
-
-<!-- EMAIL MODAL -->
-<div class="email-overlay" id="emailOverlay">
-  <div class="email-modal">
-    <h3>One last step</h3>
-    <p>Paystack needs your email to process the payment. It won't be used for anything else.</p>
-    <div class="email-error" id="emailError">Please enter a valid email address.</div>
-    <input type="email" class="email-field" id="emailField" placeholder="your@email.com" />
-    <button class="email-confirm-btn" onclick="confirmEmail()">Continue to Payment →</button>
-    <button class="email-cancel-btn" onclick="closeEmailModal()">Cancel</button>
-  </div>
-</div>
 
 </body>
 </html>
