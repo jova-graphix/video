@@ -1006,6 +1006,7 @@
     background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
     transform: skewX(-20deg);
     animation: shimmer 2.5s infinite;
+    pointer-events: none;
   }
   .popup-donate-btn:hover   { opacity: 0.92; }
   .popup-donate-btn:active  { transform: scale(0.98); }
@@ -1421,7 +1422,6 @@
 
   // ── SUPPORT POPUP ────────────────────────────────────────
   function openPopup() {
-    window._donateSource = null; // always reset so popup routes to 'popup'
     document.getElementById('popupSuccess').classList.remove('show');
     document.getElementById('popupAmount').value = '';
     document.getElementById('popupFee').textContent = '3% Paystack fee will be added';
@@ -1505,7 +1505,21 @@
     if (e.key === 'Enter') confirmEmail();
   });
 
-  // confirmEmail is defined after the page-section code below (handles both popup + page sources)
+  function confirmEmail() {
+    const email    = document.getElementById('emailField').value.trim();
+    const errorEl  = document.getElementById('emailError');
+    const emailReg = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailReg.test(email)) {
+      errorEl.classList.add('show');
+      document.getElementById('emailField').focus();
+      return;
+    }
+
+    errorEl.classList.remove('show');
+    closeEmailModal();
+    launchPaystack(email, _pendingAmountPesewas, 'popup');
+  }
 
   // ── PAYSTACK LAUNCHER (shared by popup + page section) ──
   function launchPaystack(email, amountPesewas, source) {
@@ -1516,6 +1530,11 @@
     const successEl = isPopup
       ? document.getElementById('popupSuccess')
       : document.getElementById('donateSuccess');
+
+    if (typeof PaystackPop === 'undefined') {
+      alert('Payment could not load. Please disable any ad blocker and refresh the page, then try again.');
+      return;
+    }
 
     donateBtn.disabled    = true;
     donateBtn.textContent = '⏳ Opening...';
@@ -1601,7 +1620,8 @@
     window._donateSource = 'page';
   }
 
-  // Single confirmEmail handles both popup and page-section donations
+  // Patch confirmEmail to know which source to use
+  const _origConfirmEmail = confirmEmail;
   function confirmEmail() {
     const email    = document.getElementById('emailField').value.trim();
     const errorEl  = document.getElementById('emailError');
