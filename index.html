@@ -1421,6 +1421,7 @@
 
   // ── SUPPORT POPUP ────────────────────────────────────────
   function openPopup() {
+    window._donateSource = null; // always reset so popup routes to 'popup'
     document.getElementById('popupSuccess').classList.remove('show');
     document.getElementById('popupAmount').value = '';
     document.getElementById('popupFee').textContent = '3% Paystack fee will be added';
@@ -1504,21 +1505,7 @@
     if (e.key === 'Enter') confirmEmail();
   });
 
-  function confirmEmail() {
-    const email    = document.getElementById('emailField').value.trim();
-    const errorEl  = document.getElementById('emailError');
-    const emailReg = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-    if (!emailReg.test(email)) {
-      errorEl.classList.add('show');
-      document.getElementById('emailField').focus();
-      return;
-    }
-
-    errorEl.classList.remove('show');
-    closeEmailModal();
-    launchPaystack(email, _pendingAmountPesewas, 'popup');
-  }
+  // confirmEmail is defined after the page-section code below (handles both popup + page sources)
 
   // ── PAYSTACK LAUNCHER (shared by popup + page section) ──
   function launchPaystack(email, amountPesewas, source) {
@@ -1614,8 +1601,7 @@
     window._donateSource = 'page';
   }
 
-  // Patch confirmEmail to know which source to use
-  const _origConfirmEmail = confirmEmail;
+  // Single confirmEmail handles both popup and page-section donations
   function confirmEmail() {
     const email    = document.getElementById('emailField').value.trim();
     const errorEl  = document.getElementById('emailError');
